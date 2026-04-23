@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Photo Prompt Extractor</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0f11;
+    --surface: #16181c;
+    --surface2: #1e2127;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #f0f0ef;
+    --muted: #7a7d85;
+    --accent: #c8a96e;
+    --accent2: #e8c98a;
+    --green: #4ade80;
+    --tag-bg: rgba(200,169,110,0.1);
+    --tag-border: rgba(200,169,110,0.3);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* HEADER */
+  .header {
+    padding: 2.5rem 2rem 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-end; justify-content: space-between;
+    flex-wrap: wrap; gap: 1rem;
+  }
+  .header-brand { display: flex; align-items: center; gap: 1rem; }
+  .logo-mark {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), #9b7a3f);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .header-title { font-family: 'DM Serif Display', serif; font-size: 1.5rem; color: var(--text); }
+  .header-sub { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+  .badge {
+    font-size: 11px; font-weight: 500; padding: 4px 10px;
+    border-radius: 999px; background: var(--tag-bg); border: 1px solid var(--tag-border);
+    color: var(--accent2); letter-spacing: 0.04em;
+  }
+
+  /* LAYOUT */
+  .main { display: grid; grid-template-columns: 420px 1fr; min-height: calc(100vh - 90px); }
+  @media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+
+  /* LEFT PANEL */
+  .left-panel { border-right: 1px solid var(--border); padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
+
+  .drop-zone {
+    border: 1.5px dashed var(--border2);
+    border-radius: var(--radius);
+    min-height: 260px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.75rem; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+    position: relative; overflow: hidden; background: var(--surface);
+  }
+  .drop-zone:hover { border-color: var(--accent); background: rgba(200,169,110,0.04); }
+  .drop-zone.has-img { border-style: solid; border-color: var(--border2); padding: 0; }
+  .drop-zone img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: var(--radius); max-height: 320px; }
+  .drop-zone input { display: none; }
+  .drop-icon { font-size: 2.5rem; }
+  .drop-text { font-size: 0.9rem; color: var(--muted); text-align: center; line-height: 1.5; }
+  .drop-text strong { color: var(--text); display: block; margin-bottom: 4px; font-weight: 500; }
+
+  .section-title {
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 0.6rem;
+  }
+
+  /* PERSON FORM */
+  .person-form { display: flex; flex-direction: column; gap: 0.75rem; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+  .form-label { font-size: 0.75rem; color: var(--muted); }
+  .form-input, .form-select {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-family: inherit; font-size: 0.85rem; padding: 0.55rem 0.75rem;
+    outline: none; transition: border-color 0.15s; width: 100%;
+  }
+  .form-input:focus, .form-select:focus { border-color: var(--accent); }
+  .form-select option { background: #1e2127; }
+
+  /* GENERATE BTN */
+  .gen-btn {
+    width: 100%; padding: 0.85rem;
+    background: linear-gradient(135deg, var(--accent), #9b7a3f);
+    border: none; border-radius: var(--radius-sm);
+    color: #000; font-family: inherit; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+    letter-spacing: 0.02em;
+  }
+  .gen-btn:hover { opacity: 0.9; }
+  .gen-btn:active { transform: scale(0.98); }
+
+  /* COPY MEGA PROMPT */
+  .mega-btn {
+    width: 100%; padding: 0.7rem;
+    background: transparent; border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); color: var(--muted);
+    font-family: inherit; font-size: 0.85rem; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .mega-btn:hover { border-color: var(--accent); color: var(--accent2); }
+
+  /* RIGHT PANEL */
+  .right-panel { padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
+
+  .empty-state {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 1rem;
+    color: var(--muted); text-align: center;
+  }
+  .empty-icon { font-size: 3rem; opacity: 0.3; }
+  .empty-text { font-size: 0.9rem; line-height: 1.6; max-width: 320px; }
+
+  /* PLATFORM TABS */
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tab {
+    padding: 6px 16px; border-radius: 999px; font-size: 0.8rem; font-weight: 500;
+    border: 1px solid var(--border2); cursor: pointer; background: transparent;
+    color: var(--muted); font-family: inherit; transition: all 0.15s;
+  }
+  .tab.active { background: var(--tag-bg); border-color: var(--tag-border); color: var(--accent2); }
+  .tab:hover:not(.active) { border-color: var(--border2); color: var(--text); }
+
+  /* PROMPT CARD */
+  .prompt-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .prompt-card-header {
+    padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .prompt-card-label { font-size: 0.75rem; color: var(--muted); }
+  .copy-btn {
+    font-size: 0.75rem; padding: 4px 14px; border-radius: 999px;
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--muted); cursor: pointer; font-family: inherit; transition: all 0.15s;
+  }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent2); }
+  .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+  .prompt-body {
+    padding: 1.25rem; font-size: 0.875rem; line-height: 1.75;
+    color: var(--text); white-space: pre-wrap; word-break: break-word;
+    min-height: 100px;
+    font-family: 'DM Mono', 'Courier New', monospace;
+  }
+
+  /* BREAKDOWN */
+  .breakdown-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .breakdown-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 1rem;
+  }
+  .breakdown-card-title { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.6rem; }
+  .breakdown-card-body { font-size: 0.8rem; color: var(--muted); line-height: 1.7; }
+  .breakdown-card-body strong { color: var(--text); font-weight: 500; }
+
+  /* HOW TO USE */
+  .how-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.25rem 1.5rem;
+  }
+  .how-steps { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.75rem; }
+  .how-step { display: flex; gap: 0.75rem; align-items: flex-start; }
+  .how-num {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--tag-bg);
+    border: 1px solid var(--tag-border); display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 600; color: var(--accent2); flex-shrink: 0; margin-top: 1px;
+  }
+  .how-text { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+  .how-text strong { color: var(--text); font-weight: 500; }
+
+  /* NEGATIVE */
+  .neg-card {
+    background: rgba(74,222,128,0.04); border: 1px solid rgba(74,222,128,0.15);
+    border-radius: var(--radius-sm); padding: 0.75rem 1rem;
+    font-size: 0.8rem; color: #6ee7a0; line-height: 1.6;
+  }
+  .neg-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--green); margin-bottom: 0.4rem; }
+
+  /* MEGA PROMPT MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    z-index: 100; align-items: center; justify-content: center; padding: 1rem;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: var(--radius); width: 100%; max-width: 720px;
+    max-height: 80vh; display: flex; flex-direction: column;
+  }
+  .modal-header {
+    padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-title { font-size: 0.9rem; font-weight: 500; }
+  .modal-close {
+    background: none; border: none; color: var(--muted); font-size: 1.2rem;
+    cursor: pointer; line-height: 1;
+  }
+  .modal-body { padding: 1.25rem; overflow-y: auto; flex: 1; }
+  .modal-text {
+    font-size: 0.8rem; line-height: 1.75; color: var(--muted);
+    white-space: pre-wrap; font-family: 'Courier New', monospace;
+    background: var(--bg); border-radius: var(--radius-sm); padding: 1rem;
+    border: 1px solid var(--border);
+  }
+  .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; gap: 0.75rem; justify-content: flex-end; }
+
+  .hidden { display: none !important; }
+  .fade-in { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">
+    <div class="logo-mark">📸</div>
+    <div>
+      <div class="header-title">Photo Prompt Extractor</div>
+      <div class="header-sub">Recrie qualquer foto com outra pessoa usando IA generativa</div>
+    </div>
+  </div>
+  <span class="badge">Sem API · 100% local</span>
+</header>
+
+<main class="main">
+
+  <!-- LEFT -->
+  <aside class="left-panel">
+
+    <div>
+      <div class="section-title">1. Foto de referência</div>
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div id="dropPlaceholder">
+          <div class="drop-icon">🖼️</div>
+          <div class="drop-text">
+            <strong>Arraste ou clique para carregar</strong>
+            Foto de perfil, estúdio, ar livre…<br/>JPG · PNG · WEBP
+          </div>
+        </div>
+        <img id="previewImg" style="display:none;" alt="Preview" />
+        <input type="file" id="fileInput" accept="image/*" />
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">2. Descreva a nova pessoa</div>
+      <div class="person-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Gênero</label>
+            <select class="form-select" id="gender">
+              <option value="">Não especificar</option>
+              <option value="man">Homem</option>
+              <option value="woman">Mulher</option>
+              <option value="person">Pessoa (neutro)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Idade (aprox.)</label>
+            <select class="form-select" id="age">
+              <option value="">Não especificar</option>
+              <option value="in their 20s">20-30 anos</option>
+              <option value="in their 30s">30-40 anos</option>
+              <option value="in their 40s">40-50 anos</option>
+              <option value="in their 50s">50-60 anos</option>
+              <option value="in their 60s">60+ anos</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Tom de pele</label>
+            <select class="form-select" id="skin">
+              <option value="">Não especificar</option>
+              <option value="fair skin">Pele clara</option>
+              <option value="medium skin tone">Pele média</option>
+              <option value="olive skin tone">Pele morena</option>
+              <option value="brown skin tone">Pele parda</option>
+              <option value="dark skin tone">Pele escura</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cabelo</label>
+            <select class="form-select" id="hair">
+              <option value="">Não especificar</option>
+              <option value="black hair">Preto</option>
+              <option value="brown hair">Castanho</option>
+              <option value="blonde hair">Loiro</option>
+              <option value="red hair">Ruivo</option>
+              <option value="gray hair">Grisalho</option>
+              <option value="white hair">Branco</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Características adicionais (opcional)</label>
+          <input type="text" class="form-input" id="extra" placeholder="Ex: barba curta, óculos, cabelo liso…" />
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:0.5rem;">
+      <button class="gen-btn" id="genBtn" onclick="generatePrompts()">✦ Gerar Prompts</button>
+      <button class="mega-btn" onclick="openMegaPrompt()">📋 Copiar mega-prompt para ChatGPT / Gemini</button>
+    </div>
+
+    <div class="how-card">
+      <div class="section-title">Como usar os prompts</div>
+      <div class="how-steps">
+        <div class="how-step"><div class="how-num">1</div><div class="how-text"><strong>Carregue a foto</strong> de referência e descreva a nova pessoa</div></div>
+        <div class="how-step"><div class="how-num">2</div><div class="how-text"><strong>Gere os prompts</strong> e copie o da plataforma que vai usar</div></div>
+        <div class="how-step"><div class="how-num">3</div><div class="how-text">Cole no <strong>Midjourney, DALL-E, Flux ou Stable Diffusion</strong></div></div>
+        <div class="how-step"><div class="how-num">4</div><div class="how-text">Ou use o <strong>mega-prompt</strong> colando a foto no ChatGPT, Claude ou Gemini — ele extrai tudo automaticamente</div></div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- RIGHT -->
+  <section class="right-panel" id="rightPanel">
+
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">✦</div>
+      <div class="empty-text">Carregue uma foto de referência e clique em <strong style="color:var(--text)">Gerar Prompts</strong> para extrair todos os elementos visuais e criar prompts prontos para usar.</div>
+    </div>
+
+    <div id="results" class="hidden">
+
+      <div>
+        <div class="section-title">Prompts prontos para IA generativa</div>
+        <div class="tabs">
+          <button class="tab active" onclick="switchTab(this,'mj')">Midjourney</button>
+          <button class="tab" onclick="switchTab(this,'ideogram')">Ideogram</button>
+          <button class="tab" onclick="switchTab(this,'dalle')">DALL-E 3</button>
+          <button class="tab" onclick="switchTab(this,'flux')">Flux / SD</button>
+        </div>
+      </div>
+
+      <div id="tab-mj" class="tab-content fade-in">
+        <div class="prompt-card">
+          <div class="prompt-card-header">
+            <span class="prompt-card-label">Midjourney — cole no Discord /imagine</span>
+            <button class="copy-btn" onclick="copyEl('body-mj',this)">Copiar</button>
+          </div>
+          <div class="prompt-body" id="body-mj"></div>
+        </div>
+      </div>
+
+      <div id="tab-ideogram" class="tab-content hidden">
+        <div class="prompt-card">
+          <div class="prompt-card-header">
+            <span class="prompt-card-label">Ideogram — ideogram.ai</span>
+            <button class="copy-btn" onclick="copyEl('body-ideogram',this)">Copiar</button>
+          </div>
+          <div class="prompt-body" id="body-ideogram"></div>
+        </div>
+      </div>
+
+      <div id="tab-dalle" class="tab-content hidden">
+        <div class="prompt-card">
+          <div class="prompt-card-header">
+            <span class="prompt-card-label">DALL-E 3 — ChatGPT ou API OpenAI</span>
+            <button class="copy-btn" onclick="copyEl('body-dalle',this)">Copiar</button>
+          </div>
+          <div class="prompt-body" id="body-dalle"></div>
+        </div>
+      </div>
+
+      <div id="tab-flux" class="tab-content hidden">
+        <div class="prompt-card">
+          <div class="prompt-card-header">
+            <span class="prompt-card-label">Flux / Stable Diffusion — tags separadas por vírgula</span>
+            <button class="copy-btn" onclick="copyEl('body-flux',this)">Copiar</button>
+          </div>
+          <div class="prompt-body" id="body-flux"></div>
+        </div>
+        <div class="neg-card" style="margin-top:0.75rem;" id="neg-block">
+          <div class="neg-label">Negative prompt</div>
+          <div id="body-neg"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">Análise visual da foto</div>
+        <div class="breakdown-grid" id="breakdownGrid"></div>
+      </div>
+
+    </div>
+
+  </section>
+
+</main>
+
+<!-- MEGA PROMPT MODAL -->
+<div class="modal-overlay" id="megaModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Mega-prompt — cole no ChatGPT, Claude ou Gemini com a foto</span>
+      <button class="modal-close" onclick="closeMegaModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-text" id="megaText"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="copy-btn" onclick="copyMega(this)" style="padding:8px 20px;font-size:0.85rem;">Copiar tudo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────────
+// FILE LOAD
+// ──────────────────────────────────────────────
+let imageDataURL = null;
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const previewImg = document.getElementById('previewImg');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = '#c8a96e'; });
+dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = ''; });
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.style.borderColor = '';
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadFile(f);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    imageDataURL = ev.target.result;
+    previewImg.src = imageDataURL;
+    previewImg.style.display = 'block';
+    document.getElementById('dropPlaceholder').style.display = 'none';
+    dropZone.classList.add('has-img');
+    document.getElementById('results').classList.add('hidden');
+    document.getElementById('emptyState').classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ──────────────────────────────────────────────
+// GENERATE
+// ──────────────────────────────────────────────
+function getPerson() {
+  const g = document.getElementById('gender').value;
+  const a = document.getElementById('age').value;
+  const s = document.getElementById('skin').value;
+  const h = document.getElementById('hair').value;
+  const x = document.getElementById('extra').value.trim();
+  const parts = [g, a, s, h, x].filter(Boolean);
+  return parts.length ? parts.join(', ') : 'professional person';
+}
+
+function generatePrompts() {
+  if (!imageDataURL) {
+    alert('Por favor, carregue uma foto de referência primeiro.');
+    return;
+  }
+
+  // Analyse color palette from image
+  const analysis = analyzeImageLocally(imageDataURL);
+  const person = getPerson();
+
+  buildPrompts(analysis, person);
+  buildBreakdown(analysis);
+
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('results').classList.remove('hidden');
+  document.getElementById('results').classList.add('fade-in');
+}
+
+// ──────────────────────────────────────────────
+// LOCAL IMAGE ANALYSIS (canvas-based)
+// ──────────────────────────────────────────────
+function analyzeImageLocally(dataURL) {
+  const img = new Image();
+  img.src = dataURL;
+  const canvas = document.createElement('canvas');
+  canvas.width = 100; canvas.height = 100;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, 100, 100);
+  const d = ctx.getImageData(0, 0, 100, 100).data;
+
+  let rSum=0, gSum=0, bSum=0, count=0;
+  let topBrightness=0, bottomBrightness=0;
+  for (let i=0; i<d.length; i+=4) {
+    rSum+=d[i]; gSum+=d[i+1]; bSum+=d[i+2]; count++;
+  }
+  const pixel = 100*100;
+  // top half
+  let tR=0,tG=0,tB=0;
+  for (let y=0;y<50;y++) for (let x=0;x<100;x++) {
+    const i=(y*100+x)*4; tR+=d[i]; tG+=d[i+1]; tB+=d[i+2];
+  }
+  topBrightness = (tR+tG+tB)/(50*100*3);
+  let bR=0,bG=0,bBl=0;
+  for (let y=50;y<100;y++) for (let x=0;x<100;x++) {
+    const i=(y*100+x)*4; bR+=d[i]; bG+=d[i+1]; bBl+=d[i+2];
+  }
+  bottomBrightness = (bR+bG+bBl)/(50*100*3);
+
+  const avgR = rSum/count, avgG = gSum/count, avgB = bSum/count;
+  const brightness = (avgR+avgG+avgB)/3;
+
+  // Color temp
+  const colorTemp = avgR > avgB+15 ? 'warm' : avgB > avgR+15 ? 'cool' : 'neutral';
+  // Key tone
+  const keyTone = brightness > 160 ? 'high-key' : brightness < 80 ? 'low-key' : 'mid-tone';
+  // Light direction (top lighter = overhead, else estimate)
+  const lightDir = topBrightness > bottomBrightness+0.1 ? 'top-down overhead lighting' : 'frontal or side lighting';
+  // Dominant color desc
+  const domColor = dominantColorName(avgR, avgG, avgB);
+
+  return { colorTemp, keyTone, lightDir, domColor, brightness, avgR, avgG, avgB };
+}
+
+function dominantColorName(r, g, b) {
+  const max = Math.max(r,g,b);
+  const min = Math.min(r,g,b);
+  const l = (max+min)/2;
+  if (max-min < 20) return l > 160 ? 'white or light gray' : l < 80 ? 'black or dark gray' : 'neutral gray';
+  if (r>g && r>b) return 'warm tones, brownish or reddish';
+  if (g>r && g>b) return 'greenish or teal tones';
+  if (b>r && b>g) return 'cool blue or gray-blue tones';
+  if (r>b && g>b) return 'warm beige or yellow tones';
+  return 'mixed neutral tones';
+}
+
+// ──────────────────────────────────────────────
+// BUILD PROMPTS
+// ──────────────────────────────────────────────
+function buildPrompts(a, person) {
+  const { colorTemp, keyTone, lightDir, domColor } = a;
+
+  const lightDesc = colorTemp === 'warm'
+    ? 'warm soft-box studio lighting, golden hour tone, 5500K'
+    : colorTemp === 'cool'
+    ? 'cool natural daylight, 6500K, soft diffused'
+    : 'neutral professional studio lighting, 5000K, soft diffused';
+
+  const toneDesc = keyTone === 'high-key' ? 'high-key bright background, clean white or light gray studio'
+    : keyTone === 'low-key' ? 'low-key dark background, dramatic shadows, dark studio'
+    : 'mid-tone neutral background, professional studio setting';
+
+  // MIDJOURNEY
+  document.getElementById('body-mj').textContent =
+    `Professional portrait of ${person}, ${lightDesc}, ${toneDesc}, dominant color palette: ${domColor}, `+
+    `${lightDir}, catchlights in eyes, shallow depth of field, sharp focus on face, `+
+    `corporate headshot style, clean composition, rule of thirds, photorealistic, `+
+    `shot on Sony A7IV 85mm f/1.8, editorial quality --ar 4:5 --style raw --v 6.1`;
+
+  // IDEOGRAM
+  document.getElementById('body-ideogram').textContent =
+    `A professional studio portrait photograph of ${person}. Lighting: ${lightDesc}. Background: ${toneDesc}. `+
+    `Color palette: ${domColor}. The subject is positioned using the rule of thirds, with ${lightDir}. `+
+    `Shallow depth of field, sharp eyes, professional headshot composition. `+
+    `Photorealistic, high-end editorial photography style.`;
+
+  // DALLE
+  document.getElementById('body-dalle').textContent =
+    `A high-quality professional portrait photograph of ${person}. `+
+    `The image uses ${lightDesc} with ${lightDir}. `+
+    `Background: ${toneDesc} with dominant colors of ${domColor}. `+
+    `The composition follows the rule of thirds, with the subject's face sharp and eyes with visible catchlights. `+
+    `Shallow depth of field, bokeh background. Style: professional corporate headshot, photorealistic, editorial photography.`;
+
+  // FLUX / SD
+  document.getElementById('body-flux').textContent =
+    `professional portrait, ${person}, ${lightDesc}, ${toneDesc}, `+
+    `${domColor} color palette, ${lightDir}, catchlights in eyes, `+
+    `shallow dof, 85mm lens, f/1.8, sharp focus, bokeh background, `+
+    `corporate headshot, photorealistic, 8k, professional photography, `+
+    `editorial quality, color graded, studio lighting`;
+
+  document.getElementById('body-neg').textContent =
+    `blurry, out of focus, bad anatomy, deformed, ugly, bad proportions, `+
+    `low quality, watermark, text, logo, cartoon, painting, illustration, `+
+    `harsh shadows, overexposed, underexposed, noise, grain`;
+}
+
+// ──────────────────────────────────────────────
+// BREAKDOWN CARDS
+// ──────────────────────────────────────────────
+function buildBreakdown(a) {
+  const { colorTemp, keyTone, lightDir, domColor, brightness } = a;
+
+  const cards = [
+    ['Temperatura de cor', colorTemp === 'warm' ? 'Quente — tons dourados, ~5500K' : colorTemp === 'cool' ? 'Fria — luz natural, ~6500K' : 'Neutra — luz branca, ~5000K'],
+    ['Tom geral', keyTone === 'high-key' ? 'High-key — fundo claro, muita luz' : keyTone === 'low-key' ? 'Low-key — fundo escuro, dramático' : 'Mid-tone — exposição equilibrada'],
+    ['Direção da luz', lightDir === 'top-down overhead lighting' ? 'Superior — luz vindo de cima' : 'Frontal ou lateral — luz principal horizontal'],
+    ['Paleta dominante', domColor],
+    ['Brilho médio', brightness > 160 ? 'Alto (foto clara)' : brightness < 80 ? 'Baixo (foto escura)' : 'Médio (equilibrado)'],
+    ['Estilo recomendado', keyTone === 'high-key' ? 'Foto corporativa / LinkedIn' : keyTone === 'low-key' ? 'Editorial / criativo / dramático' : 'Versátil — corporativo ou casual'],
+    ['Lente sugerida', '85mm f/1.8 a f/2.8 (retrato clássico)'],
+    ['Plataformas ideais', 'Midjourney v6, Flux Pro, DALL-E 3'],
+  ];
+
+  const grid = document.getElementById('breakdownGrid');
+  grid.innerHTML = cards.map(([title, val]) => `
+    <div class="breakdown-card">
+      <div class="breakdown-card-title">${title}</div>
+      <div class="breakdown-card-body">${val}</div>
+    </div>
+  `).join('');
+}
+
+// ──────────────────────────────────────────────
+// TABS
+// ──────────────────────────────────────────────
+function switchTab(btn, tabId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + tabId).classList.remove('hidden');
+}
+
+// ──────────────────────────────────────────────
+// COPY
+// ──────────────────────────────────────────────
+function copyEl(id, btn) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copiado!'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 1800);
+  });
+}
+
+// ──────────────────────────────────────────────
+// MEGA PROMPT (para colar no ChatGPT/Claude/Gemini COM a foto)
+// ──────────────────────────────────────────────
+const MEGA_PROMPT = `Você é um especialista em fotografia profissional e geração de imagens por IA.
+
+Analise esta imagem com máxima atenção e extraia TODOS os elementos visuais, técnicos e estéticos necessários para recriar a cena com outra pessoa no lugar da original.
+
+Por favor, entregue:
+
+## 1. ANÁLISE COMPLETA DA FOTO
+
+**Iluminação:**
+- Tipo (natural, estúdio, ring light, softbox, janela...)
+- Direção da luz principal (frontal, lateral esquerda/direita, de cima, de trás...)
+- Temperatura de cor (quente ~3200K / neutra ~5000K / fria ~6500K)
+- Qualidade (suave/difusa ou dura/direta)
+- Efeitos especiais (rim light, catchlights, fill light, backlight, gobo...)
+- Sombras (localização, intensidade)
+
+**Cenário e fundo:**
+- Ambiente (interno / externo)
+- Tipo de local (estúdio, escritório, natureza, rua, hotel...)
+- Cor e textura do fundo
+- Profundidade de campo (rasa com bokeh ou profunda)
+- Elementos visíveis no cenário
+
+**Composição:**
+- Enquadramento (close, meio corpo, 3/4, corpo inteiro)
+- Ângulo da câmera (nível dos olhos, levemente acima, de baixo...)
+- Posição do sujeito na frame (regra dos terços)
+- Distância focal estimada (grande angular / normal 50mm / teleobjetiva 85-135mm)
+
+**Pose e expressão:**
+- Postura corporal detalhada
+- Posição e angulação da cabeça
+- Expressão facial
+- Direção do olhar
+- Posição dos braços e mãos (se visíveis)
+- Energia e tom geral (formal, casual, confiante, relaxado...)
+
+**Estilo e edição:**
+- Estilo fotográfico (corporativo, editorial, lifestyle, retrato clássico...)
+- Paleta de cores predominante
+- Temperatura de edição (quente/fria)
+- Contraste e saturação
+- Estilo de edição (natural, cinematográfico, high-key, low-key, vintage...)
+
+---
+
+## 2. PROMPTS PRONTOS PARA RECRIAR A FOTO COM OUTRA PESSOA
+
+Gere prompts otimizados para cada plataforma abaixo. Onde diz [NOVA PESSOA], deixe o marcador para eu preencher com a descrição da nova pessoa.
+
+**MIDJOURNEY** (máx 400 chars, em inglês, termine com --ar X:Y --style raw --v 6.1):
+[prompt aqui]
+
+**IDEOGRAM** (descritivo, em inglês, máx 500 chars):
+[prompt aqui]
+
+**DALL-E 3 / GPT-4o** (narrativo e detalhado, em inglês, máx 600 chars):
+[prompt aqui]
+
+**FLUX / STABLE DIFFUSION** (tags separadas por vírgula, em inglês, máx 400 chars):
+[prompt aqui]
+
+**NEGATIVE PROMPT** (para SD/Flux, em inglês):
+[prompt aqui]
+
+---
+
+## 3. DICA PARA SUBSTITUIÇÃO PERFEITA
+
+Explique em português como devo descrever a nova pessoa nos prompts para obter o resultado mais fiel possível ao estilo e iluminação da foto original.
+
+---
+
+Seja extremamente técnico e detalhado. Quanto mais preciso for o prompt, melhor será o resultado da IA generativa.`;
+
+function openMegaPrompt() {
+  document.getElementById('megaText').textContent = MEGA_PROMPT;
+  document.getElementById('megaModal').classList.add('open');
+}
+
+function closeMegaModal() {
+  document.getElementById('megaModal').classList.remove('open');
+}
+
+function copyMega(btn) {
+  navigator.clipboard.writeText(MEGA_PROMPT).then(() => {
+    btn.textContent = 'Copiado!'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copiar tudo'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+document.getElementById('megaModal').addEventListener('click', function(e) {
+  if (e.target === this) closeMegaModal();
+});
+</script>
+</body>
+</html>
